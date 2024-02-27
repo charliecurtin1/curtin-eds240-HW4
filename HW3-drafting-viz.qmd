@@ -1,0 +1,172 @@
+---
+title: "Homework Assignment #3"
+author: "Charlie Curtin"
+date: 2024-02-23
+toc: true
+format:
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## questions
+
+1. Which option do you plan to pursue?
+
+- I plan to pursue the 2nd option, the infographic
+
+2. Restate your question. Has it changed at all since HW #1? If yes, how so?
+
+- A lot of information that comes out about wildfires focuses on their size and severity, but I've never seen much information about the temporal component of wildfires. What time of day are fires spotted or contained? When is "fire season"? How long does it take to contain a fire? This led me to change my question to "When are wildland firefighters working?" (need some help making this better), where I'll be focusing on some of the seemingly-overlooked temporal aspects of wildfires. My first sub-question is "What hour of the day are wildfires discovered or contained?". The next is "How long does it take to contain a fire?". The next is "When are fires active during the year?".
+
+3. Explain which variables from your data set you will use to answer your question.
+
+- The variables I'll use will be discovery_doy (day of the year from 1-365 the fire was discovered), discovery_time (time of the day the fire was discovered), cont_doy (day of the year from 1-365 the fire was contained), cont_time (time of day the fire was contained), discovery_date, and cont_date. From these variables I was able to create a new variable binning the times into hour of the day (0-23). With this, I can visualize hour of the day on the x-axis and count of fires discovered/contained within each hour on the y-axis in a barplot. This helps to answer "What time of day are fires discovered/contained?". From the discovery and contained dates I was able to derive the number of days that each fire was active. With this, I will plot a subset of the largest fires in the dataset and the number of days that each was active to give a sense of how long it takes to contain a large fire. Lastly, the day of the year from 1-365 variables will be helpful in plotting with bars the count of fires contained/discovered on each day. This will show when the most fires are occurring during the year. 
+
+
+## inspiration
+
+
+
+
+
+
+## rough sketches
+
+
+
+## visualizations mock-ups
+
+```{r, message = FALSE, warning = FALSE}
+# load packages
+library(tidyverse)
+library(here)
+
+# turn off scientific notation
+options(scipen = 999)
+```
+
+```{r, message = FALSE, warning = FALSE}
+# read in california fires
+ca_fires <- read_csv(here("data", "ca_fires.csv"))
+```
+
+### Data wrangling, cleaning, and subsetting
+
+```{r}
+## cleaning and wrangling
+ca_fires_clean <- ca_fires %>% 
+  # convert names to lower snakecase
+  janitor::clean_names() %>% 
+  # select variables of interest
+  select(nwcg_reporting_agency, nwcg_reporting_unit_name, fire_name, fire_year, discovery_date, discovery_doy, discovery_time, discovery_time, nwcg_cause_classification, nwcg_general_cause, cont_date, cont_doy, cont_time, fire_size, fire_size_class, fips_name) %>% 
+  # create a new column to describe days it took to contain fire 
+  mutate(days_active = as.numeric(difftime(cont_date, discovery_date, units = "days"))) %>% 
+  # remove the minutes from each discovery and contained time to get just the hour
+  mutate(disc_hour = str_sub(discovery_time, start = 1, end = -3),
+         cont_hour = str_sub(cont_time, start = 1, end = -3))
+           
+           
+## create new dataframes summarizing number of fires discovered and contained on each day of the year
+disc_doy <- ca_fires_clean %>% 
+  group_by(discovery_doy) %>% 
+  summarize(count = n())
+
+cont_doy <- ca_fires_clean %>% 
+  group_by(cont_doy) %>% 
+  summarize(count = n()) %>% 
+  drop_na()
+
+## create new dataframes summarizing the 
+disc_90s <- ca_fires_clean  %>% 
+  filter(fire_year %in% 1992:1997) %>% 
+  group_by(discovery_doy) %>% 
+  summarize(count = n()) %>% 
+  mutate(period = "1992-1997")
+
+disc_10s <- ca_fires_clean  %>% 
+  filter(fire_year %in% 2013:2018) %>% 
+  group_by(discovery_doy) %>% 
+  summarize(count = n()) %>% 
+  mutate(period = "2013-2018")
+
+disc_years <- rbind(disc_90s, disc_10s)
+
+## create a new dataframe subsetting the largest fires
+largest_fires <- ca_fires_clean %>% 
+  slice_max(fire_size, n = 11) %>% 
+  mutate(fire_num = as.numeric(as.factor(fire_name))) %>% 
+  filter(!fire_name %in% c("THOMAS"))
+
+# separate the month and day from the year
+largest_fires <- largest_fires %>% 
+  mutate(disc_a = format(discovery_date, "%m-%d"),
+         cont_a = format(cont_date, "%m-%d"))
+
+# add dummy year to discovery and contained dates
+largest_fires$disc_a <- mdy(paste0(largest_fires$disc_a, "-2000"))
+largest_fires$cont_a <- mdy(paste0(largest_fires$cont_a, "-2000"))
+```
+
+
+## Plotting
+
+What time of day are fires discovered? Contained?
+```{r}
+# plotting a barplot for discovery time
+ca_fires_clean %>% 
+  drop_na(disc_hour) %>% 
+  drop_na(cont_hour) %>% 
+  ggplot() +
+  geom_bar(aes(x = disc_hour), fill = "red") +
+  geom_bar(aes(x = cont_hour), fill = "orange") +
+  theme_bw() +
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0, 13000)) +
+  theme(panel.grid.major.x = element_blank())
+```
+
+
+When is "fire season"?
+```{r}
+# plotting discovery day of the year
+ca_fires_clean %>% 
+  drop_na(discovery_doy) %>% 
+  drop_na(cont_doy) %>% 
+  ggplot() +
+  geom_bar(aes(x = discovery_doy), fill = "orange", color = "orange") +
+  theme_bw() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0, 1600)) +
+  labs(x = "day of the year",
+       y = "number of fires") +
+  theme(legend.position = "bottom",
+        panel.grid.major = element_line(color = NA),
+        panel.grid.minor = element_line(color = NA)) +
+  annotate(geom = "text", x = 185, y = 1500, size = 2.5, label = "4th of July") +
+  annotate(geom = "text", x = 246, y = 1100, size = 2.5, label = "Labor Day") +
+  annotate(geom = "text", x = 173, y = 1000, size = 2.5, label = "Summer Solstice")
+```
+
+How long does it take to contain a large fire?
+
+```{r}
+
+ggplot(data = largest_fires) +
+  geom_segment(aes(x = disc_a, xend = cont_a, y = fire_num, yend = fire_num, color = fire_name), size = 1) +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b")
+
+# explain that the Thomas Fire was removed due to incomplete data, but that it is the largest in the dataset
+# direct label fires
+# find some way to represent size as well?
+# order by size?
+# order 
+```
+
+## Follow-up questions
+
+
+
+
