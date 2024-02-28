@@ -24,35 +24,54 @@ editor_options:
 
 - The variables I'll use will be discovery_doy (day of the year from 1-365 the fire was discovered), discovery_time (time of the day the fire was discovered), cont_doy (day of the year from 1-365 the fire was contained), cont_time (time of day the fire was contained), discovery_date, and cont_date. From these variables I was able to create a new variable binning the times into hour of the day (0-23). With this, I can visualize hour of the day on the x-axis and count of fires discovered/contained within each hour on the y-axis in a barplot. This helps to answer "What time of day are fires discovered/contained?". From the discovery and contained dates I was able to derive the number of days that each fire was active. With this, I will plot a subset of the largest fires in the dataset and the number of days that each was active to give a sense of how long it takes to contain a large fire. Lastly, the day of the year from 1-365 variables will be helpful in plotting with bars the count of fires contained/discovered on each day. This will show when the most fires are occurring during the year. 
 
-
-## inspiration
-
-
-
-
-
-
-## rough sketches
-
-
-
-## visualizations mock-ups
-
-```{r, message = FALSE, warning = FALSE}
+```{r, message = FALSE, warning = FALSE, include = FALSE}
 # load packages
 library(tidyverse)
 library(here)
+library(showtext)
 
 # turn off scientific notation
 options(scipen = 999)
+
+# get fonts from google for plots
+font_add_google(name = "Kanit", family = "kanit")
+
+# enable showtext for rendering
+showtext_auto()
 ```
+
+## Inspiration
+
+```{r, eval = TRUE, echo = FALSE}
+knitr::include_graphics(here("images", "inspo_1.png"))
+```
+
+I really like the plot style in this. I guess it's a lollipop plot of sorts, but I like the line segments with different positions based on their start on the x-axis value. I plan to use it to compare fire duration (days active) between different fires while also showing what time of year they occurred.
+
+```{r, eval = TRUE, echo = FALSE}
+knitr::include_graphics(here("images", "inspo_2.png"))
+```
+
+I was looking up wildfire infographics and liked the color scheme in this one. The black background with fire-colored plot aesthetics is punchy and contrasty. I plan to use the graphic idea in this one for the two barplots that I create.
+
+## Rough sketches
+
+```{r}
+knitr::include_graphics(here("images", "draft_1.jpg"))
+
+knitr::include_graphics(here("images", "draft_2.jpg"))
+
+knitr::include_graphics(here("images", "draft_3.jpg"))
+```
+
+## Visualization mock-ups
 
 ```{r, message = FALSE, warning = FALSE}
 # read in california fires
 ca_fires <- read_csv(here("data", "ca_fires.csv"))
 ```
 
-### Data wrangling, cleaning, and subsetting
+#### Data wrangling, cleaning, and subsetting
 
 ```{r}
 ## cleaning and wrangling
@@ -78,94 +97,239 @@ cont_doy <- ca_fires_clean %>%
   summarize(count = n()) %>% 
   drop_na()
 
-## create new dataframes summarizing the 
-disc_90s <- ca_fires_clean  %>% 
-  filter(fire_year %in% 1992:1997) %>% 
-  group_by(discovery_doy) %>% 
-  summarize(count = n()) %>% 
-  mutate(period = "1992-1997")
-
-disc_10s <- ca_fires_clean  %>% 
-  filter(fire_year %in% 2013:2018) %>% 
-  group_by(discovery_doy) %>% 
-  summarize(count = n()) %>% 
-  mutate(period = "2013-2018")
-
-disc_years <- rbind(disc_90s, disc_10s)
-
 ## create a new dataframe subsetting the largest fires
 largest_fires <- ca_fires_clean %>% 
-  slice_max(fire_size, n = 11) %>% 
-  mutate(fire_num = as.numeric(as.factor(fire_name))) %>% 
-  filter(!fire_name %in% c("THOMAS"))
-
-# separate the month and day from the year
-largest_fires <- largest_fires %>% 
+  slice_max(fire_size, n = 11) %>%
+  # remove the Thomas Fire for lack of data
+  filter(!fire_name %in% c("THOMAS")) %>% 
+  # assign a number to each fire for plotting purposes
+  mutate(fire_num = rank(desc(fire_size))) %>% 
+  # turn fire names into title case and add "Fire" after
+  mutate(fire_name = str_to_title(fire_name),
+         fire_name = paste(fire_name, "Fire")) %>% 
+  # add commas to fire size and create a new column that adds the acres label
+  mutate(fire_size = format(fire_size, big.mark = ",", scientific = FALSE),
+         acres_label = paste(fire_size, "acres")) %>% 
+  # separat the month and day from the year
   mutate(disc_a = format(discovery_date, "%m-%d"),
          cont_a = format(cont_date, "%m-%d"))
 
-# add dummy year to discovery and contained dates
+# add dummy year to discovery and contained dates for plotting
 largest_fires$disc_a <- mdy(paste0(largest_fires$disc_a, "-2000"))
 largest_fires$cont_a <- mdy(paste0(largest_fires$cont_a, "-2000"))
-```
 
+##
+# group fires by discovery and contained hour and get counts
+disc_hour <- ca_fires_clean %>% 
+  group_by(disc_hour) %>% 
+  summarize(count = n()) %>% 
+  drop_na()
+
+cont_hour <- ca_fires_clean %>% 
+  group_by(cont_hour) %>% 
+  summarize(count = n()) %>% 
+  drop_na()
+```
 
 ## Plotting
 
-What time of day are fires discovered? Contained?
+What time of day are fires discovered?
+
 ```{r}
-# plotting a barplot for discovery time
-ca_fires_clean %>% 
-  drop_na(disc_hour) %>% 
-  drop_na(cont_hour) %>% 
+# barplot of count of fires discovered at each hour of the day
   ggplot() +
-  geom_bar(aes(x = disc_hour), fill = "red") +
-  geom_bar(aes(x = cont_hour), fill = "orange") +
-  theme_bw() +
+  # plot barplot with counts
+  geom_bar(data = disc_hour,
+           aes(x = disc_hour, y = count, fill = count),
+           stat = "identity") +
+  # color bars by gradient for fire aesthetic
+  scale_fill_gradient(low = "orange", high = "red") +
+  # modify y-axis limit to make data flush with x-axis
   scale_y_continuous(expand = c(0,0),
-                     limits = c(0, 13000)) +
-  theme(panel.grid.major.x = element_blank())
+                     limits = c(0, 19000)) +
+  # add labels, title, and subtitle
+  labs(x = "hour of the day",
+       y = "number of fires",
+       title = "When are fires spotted?",
+       subtitle = "Count of wildfires discovered at each hour of the day from 1992-2018") +
+  # modify theme elements
+  theme(panel.grid.major.x = element_blank(), # remove x-axis grid lines
+        # set plot background to be black
+        plot.background = element_rect(fill = "black", color = NA),
+        # set panel background to be black
+        panel.background = element_rect(fill = "black", color = NA),
+        # set panel border to be white
+        panel.border = element_rect(color = "white", fill = NA),
+        # set axis labels to be white
+        axis.title = element_text(color = "white",
+                                  family = "kanit",
+                                  size = 12),
+        # set axis breaks to be white
+        axis.text = element_text(color = "white",
+                                 family = "kanit"),
+        # modify title text
+        plot.title = element_text(color = "white",
+                                  family = "kanit",
+                                  face = "bold",
+                                  size = 15),
+        # modify subtitle text
+        plot.subtitle = element_text(color = "white",
+                                     family = "kanit",
+                                     size = 12),
+        # set axis ticks to be white
+        axis.ticks = element_line(color = "white"),
+        # set axis lines to be white
+        axis.line = element_line(color = "white"),
+        # remove the legend
+        legend.position = "none")
 ```
 
 
 When is "fire season"?
+
 ```{r}
-# plotting discovery day of the year
-ca_fires_clean %>% 
-  drop_na(discovery_doy) %>% 
-  drop_na(cont_doy) %>% 
+# barplot of discovery day of the year
+disc_doy %>% 
   ggplot() +
-  geom_bar(aes(x = discovery_doy), fill = "orange", color = "orange") +
-  theme_bw() +
+  # plot the counts dataframe with stat = "identity"
+  geom_bar(aes(x = discovery_doy, y = count, fill = count),
+           stat = "identity", color = "orange", linewidth = .05) +
+  # set a gradient fill on the bars
+  scale_fill_gradient(low = "orange", high = "red") +
+  # make data flush with the x- and y-axes
   scale_x_continuous(expand = c(0,0)) +
   scale_y_continuous(expand = c(0,0),
-                     limits = c(0, 1600)) +
+                     limits = c(0, 3200)) +
+  # set x-axis and y-axis labels
   labs(x = "day of the year",
-       y = "number of fires") +
-  theme(legend.position = "bottom",
-        panel.grid.major = element_line(color = NA),
-        panel.grid.minor = element_line(color = NA)) +
-  annotate(geom = "text", x = 185, y = 1500, size = 2.5, label = "4th of July") +
-  annotate(geom = "text", x = 246, y = 1100, size = 2.5, label = "Labor Day") +
-  annotate(geom = "text", x = 173, y = 1000, size = 2.5, label = "Summer Solstice")
+       y = "number of fires",
+       title = "When is 'fire season'?",
+       subtitle = "Count of wildfires discovered on each day of the year from 1992-2018") +
+  # add annotations to label spikes in fire activity
+  annotate(geom = "text", x = 180, y = 2850, size = 3, 
+           label = "4th of July", color = "white", angle = 90,
+           family = "kanit") +
+  annotate(geom = "text", x = 240, y = 1800, size = 3, 
+           label = "Labor Day", color = "white", angle = 90,
+           family = "kanit") +
+  annotate(geom = "text", x = 167, y = 1800, size = 3, 
+           label = "Summer Solstice", color = "white", angle = 90,
+           family = "kanit") +
+    # modify theme elements
+  theme(panel.grid.major = element_line(color = NA), # remove grid lines
+        panel.grid.minor = element_line(color = NA),
+        # set plot background to be black
+        plot.background = element_rect(fill = "black", color = NA),
+        # set panel background to be black
+        panel.background = element_rect(fill = "black", color = NA),
+        # set panel border to be white
+        panel.border = element_rect(color = "white", fill = NA),
+        # modify axis labels text
+        axis.title = element_text(color = "white",
+                                  family = "kanit",
+                                  size = 12),
+        # modify axis breaks text
+        axis.text = element_text(color = "white",
+                                 family = "kanit"),
+        # set axis ticks to be white
+        axis.ticks = element_line(color = "white"),
+        # set axis lines to be white
+        axis.line = element_line(color = "white"),
+        # remove the legend
+        legend.position = "none",
+        # modify plot title text
+        plot.title = element_text(color = "white",
+                                  family = "kanit",
+                                  size = 15,
+                                  face = "bold"),
+        # modify plot subtitle text
+        plot.subtitle = element_text(color = "white",
+                                     family = "kanit",
+                                     size = 12))
 ```
 
-How long does it take to contain a large fire?
 
-```{r}
+How long does it take to contain a megafire?
 
+```{r, message = FALSE, warning = FALSE}
+# not even sure what type of plot this is
 ggplot(data = largest_fires) +
-  geom_segment(aes(x = disc_a, xend = cont_a, y = fire_num, yend = fire_num, color = fire_name), size = 1) +
-  scale_x_date(date_breaks = "1 month", date_labels = "%b")
-
-# explain that the Thomas Fire was removed due to incomplete data, but that it is the largest in the dataset
-# direct label fires
-# find some way to represent size as well?
-# order by size?
-# order 
+  # plot each fire as a line segment, length-dependent on days active
+  geom_segment(aes(x = disc_a, xend = cont_a, y = fire_num, 
+                   yend = fire_num, color = days_active), linewidth = 1) +
+  # color segments in a gradient fill based on fire size
+  scale_color_gradient(low = "orange", high = "red") +
+  # directly label each fire with fire name
+  geom_text(aes(x = cont_a, y = fire_num, label = fire_name), 
+            hjust = 1, vjust = -.7, size = 4, 
+            color = "white", family = "kanit") +
+  # directly label each fire with fire size
+  geom_text(aes(x = cont_a, y = fire_num, label = acres_label), 
+            hjust = 1, vjust = 1.5, size = 4, 
+            nudge_x = 0.5, color = "white", family = "kanit") +
+  # convert date format into month names
+  scale_x_date(date_breaks = "1 month", 
+               date_labels = "%b") +
+  # this line was meant to give the bars some space but somehow orders them by fire size so I'm scared to touch it
+  scale_y_discrete(limits = c(0, 11),
+                   expand = c(-1,-1)) +
+  # add axis labels, title, and subtitle
+  labs(x = "fire duration",
+       y = "",
+       title = "How long does it take to contain a megafire?",
+       subtitle = "10 of California's largest megafires, mapped by days active") +
+  theme(panel.grid.major.x = element_blank(), # remove x-axis grid lines
+        # remove panel grid lines
+        panel.grid.major = element_line(color = NA),
+        panel.grid.minor = element_line(color = NA),
+        # set plot background to be black
+        plot.background = element_rect(fill = "black", color = NA),
+        # set panel background to be black
+        panel.background = element_rect(fill = "black", color = NA),
+        # set panel border to be white
+        panel.border = element_rect(color = "white", fill = NA),
+        # modify axis title text
+        axis.title = element_text(color = "white",
+                                  family = "kanit",
+                                  size = 12),
+        # modify axis breaks text
+        axis.text = element_text(color = "white",
+                                 family = "kanit"),
+        # set axis ticks to be white
+        axis.ticks = element_line(color = "white"),
+        # remove y-axis ticks
+        axis.ticks.y = element_blank(),
+        # remove y-axis labels
+        axis.text.y = element_blank(),
+        # set axis lines to be white
+        axis.line = element_line(color = "white"),
+        # remove the legend
+        legend.position = "none",
+        # format plot title
+        plot.title = element_text(color = "white",
+                                  family = "kanit",
+                                  size = 15,
+                                  face = "bold"),
+        # format plot subtitle
+        plot.subtitle = element_text(color = "white",
+                                     family = "kanit",
+                                     size = 12))
 ```
 
 ## Follow-up questions
+
+1. What challenges did you encounter or anticipate encountering as you continue to build / iterate on your visualizations in R?
+
+- So. many. challenges. One that sticks out is trying to force a more advanced graphic because I thought a barplot might be a bit simple. With my barplot showing count of fires by hour of the day in which they were discovered, I initially used a circular barplot so that it could look like a clock. I quickly realize that a) clocks go from 1-12, not 0-23 and b) circular barplots make it almost impossible to compare between bars. I decided that the simple plot was the more effective way to show the information.
+
+2. What ggplot extension tools / packages do you need to use to build your visualizations? Are there any that we haven’t covered in class that you’ll be learning how to use for your visualizations?
+
+- Nothing fancy. I just used showtext to be able to load in Google fonts.
+
+3. What feedback do you need from the instructional team and / or your peers to ensure that your intended message is clear?
+
+- How much additional text to add! When I was making all my plots, I realized I could continue adding asterisks and additional information, but I figured all that stuff would be better in the body of an infographic/in between plots, rather than right on the plot. 
+
 
 
 
