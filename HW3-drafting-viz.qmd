@@ -256,7 +256,7 @@ How long does it take to contain a megafire?
 ggplot(data = largest_fires) +
   # plot each fire as a line segment, length-dependent on days active
   geom_segment(aes(x = disc_a, xend = cont_a, y = fire_num, 
-                   yend = fire_num, color = days_active), linewidth = 1) +
+                   yend = fire_num, color = days_active), linewidth = 5) +
   # color segments in a gradient fill based on fire size
   scale_color_gradient(low = "orange", high = "red") +
   # directly label each fire with fire name
@@ -314,6 +314,13 @@ ggplot(data = largest_fires) +
         plot.subtitle = element_text(color = "white",
                                      family = "kanit",
                                      size = 12))
+
+# add year
+# make bars thicker, put labels inside
+# put year in label like- Ranch Fire (2018)
+# put name on one end and acreage on the other 
+# think about additional context, maybe number of fires that 
+# 
 ```
 
 ## Follow-up questions

@@ -1,0 +1,154 @@
+---
+title: "Homework Assignment #3"
+author: "Charlie Curtin"
+date: 2024-02-23
+toc: true
+format:
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r, message = FALSE}
+# load packages
+library(tidyverse)
+library(here)
+library(showtext)
+
+# turn off scientific notation
+options(scipen = 999)
+
+# get fonts from google for plots
+font_add_google(name = "League Spartan", family = "league")
+
+# enable showtext for rendering
+showtext_auto()
+```
+
+
+## Visualizations
+
+```{r, message = FALSE, warning = FALSE}
+# read in california fires
+ca_fires <- read_csv(here("data", "ca_fires.csv"))
+```
+
+- make sure in the final to actually put the subsetting and stuff that got you to the final dataset, not just from california fires
+
+```{r}
+## cleaning and wrangling
+ca_fires_clean <- ca_fires %>% 
+  # convert names to lower snakecase
+  janitor::clean_names() %>% 
+  # select variables of interest
+  select(nwcg_reporting_agency, nwcg_reporting_unit_name, fire_name, fire_year, discovery_date, discovery_doy, discovery_time, discovery_time, nwcg_cause_classification, nwcg_general_cause, cont_date, cont_doy, cont_time, fire_size, fire_size_class, fips_name) %>% 
+  # create a new column to describe days it took to contain fire 
+  mutate(days_active = as.numeric(difftime(cont_date, discovery_date, units = "days"))) %>% 
+  # remove the minutes from each discovery and contained time to get just the hour
+  mutate(disc_hour = str_sub(discovery_time, start = 1, end = -3),
+         cont_hour = str_sub(cont_time, start = 1, end = -3))
+           
+           
+## create new dataframes summarizing number of fires discovered and contained on each day of the year
+disc_doy <- ca_fires_clean %>% 
+  group_by(discovery_doy) %>% 
+  summarize(count = n())
+
+cont_doy <- ca_fires_clean %>% 
+  group_by(cont_doy) %>% 
+  summarize(count = n()) %>% 
+  drop_na()
+
+## create a new dataframe subsetting the largest fires
+largest_fires <- ca_fires_clean %>% 
+  slice_max(fire_size, n = 11) %>%
+  # remove the Thomas Fire for lack of data
+  filter(!fire_name %in% c("THOMAS")) %>% 
+  # assign a number to each fire for plotting purposes
+  mutate(fire_num = rank(desc(fire_size))) %>% 
+  # turn fire names into title case and add "Fire" after
+  mutate(fire_name = str_to_title(fire_name),
+         fire_name = paste(fire_name, "Fire")) %>% 
+  # add commas to fire size and create a new column that adds the acres label
+  mutate(fire_size = format(fire_size, big.mark = ",", scientific = FALSE),
+         acres_label = paste(fire_size, "acres")) %>% 
+  # separat the month and day from the year
+  mutate(disc_a = format(discovery_date, "%m-%d"),
+         cont_a = format(cont_date, "%m-%d"))
+
+# add dummy year to discovery and contained dates for plotting
+largest_fires$disc_a <- mdy(paste0(largest_fires$disc_a, "-2000"))
+largest_fires$cont_a <- mdy(paste0(largest_fires$cont_a, "-2000"))
+
+# group fires by discovery and contained hour and get counts
+disc_hour <- ca_fires_clean %>% 
+  group_by(disc_hour) %>% 
+  summarize(count = n()) %>% 
+  drop_na()
+
+cont_hour <- ca_fires_clean %>% 
+  group_by(cont_hour) %>% 
+  summarize(count = n()) %>% 
+  drop_na()
+```
+
+
+## Plotting
+
+```{r}
+# barplot of count of fires discovered at each hour of the day
+  ggplot() +
+  # plot barplot with counts
+  geom_bar(data = disc_hour,
+           aes(x = disc_hour, y = count, fill = count),
+           stat = "identity") +
+  # color bars by gradient for fire aesthetic
+  scale_fill_gradient(low = "orange", high = "red") +
+  # modify y-axis limit to make data flush with x-axis
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0, 19000)) +
+  # add labels, title, and subtitle
+  labs(x = "hour of the day",
+       y = "number of fires",
+       title = "When are fires spotted?",
+       subtitle = "Count of wildfires discovered at each hour of the day from 1992-2018") +
+  # modify theme elements
+  theme(panel.grid.major.x = element_blank(), # remove x-axis grid lines
+        # set plot background to be black
+        plot.background = element_rect(fill = "black", color = NA),
+        # set panel background to be black
+        panel.background = element_rect(fill = "black", color = NA),
+        # set panel border to be white
+        panel.border = element_rect(color = "white", fill = NA),
+        # set axis labels to be white
+        axis.title = element_text(color = "white",
+                                  family = "league",
+                                  size = 12),
+        # set axis breaks to be white
+        axis.text = element_text(color = "white",
+                                 family = "league"),
+        # modify title text
+        plot.title = element_text(color = "white",
+                                  family = "league",
+                                  face = "bold",
+                                  size = 15),
+        # modify subtitle text
+        plot.subtitle = element_text(color = "white",
+                                     family = "league",
+                                     size = 12),
+        # set axis ticks to be white
+        axis.ticks = element_line(color = "white"),
+        # set axis lines to be white
+        axis.line = element_line(color = "white"),
+        # remove the legend
+        legend.position = "none")
+```
+
+
+
+
+
+
+- remember to put figure captions and alt-text on everything
