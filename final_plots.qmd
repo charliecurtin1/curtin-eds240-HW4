@@ -16,6 +16,7 @@ editor_options:
 library(tidyverse)
 library(here)
 library(showtext)
+library(scales)
 
 # turn off scientific notation
 options(scipen = 999)
@@ -49,7 +50,6 @@ ca_fires_clean <- ca_fires %>%
   # remove the minutes from each discovery and contained time to get just the hour
   mutate(disc_hour = str_sub(discovery_time, start = 1, end = -3),
          cont_hour = str_sub(cont_time, start = 1, end = -3))
-           
            
 ## create new dataframes summarizing number of fires discovered and contained on each day of the year
 disc_doy <- ca_fires_clean %>% 
@@ -147,7 +147,322 @@ cont_hour <- ca_fires_clean %>%
 ```
 
 
+## working on modifying plot #1
+```{r}
+# barplot of count of fires discovered at each hour of the day
+  ggplot() +
+  # plot barplot with counts
+  geom_bar(data = disc_hour,
+           aes(x = disc_hour, y = count),
+           stat = "identity", fill = "orange") +
+  # modify y-axis limit to make data flush with x-axis
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0, 19000),
+                     labels = label_comma()) +
+  # add labels, title, and subtitle
+  labs(x = "hour of the day",
+       y = "number of fires",
+       title = "Wildfires tend to be discovered in the early afternoon",
+       subtitle = "Count of wildfires discovered at each hour of the day from 1992-2018") +
+  # modify theme elements
+  theme(panel.grid.major = element_blank(), # remove grid lines
+        panel.grid.minor = element_blank(),
+        # remove panel border
+        panel.border = element_blank(),
+        # set plot background to be black
+        plot.background = element_rect(fill = "black", color = NA),
+        # set panel background to be black
+        panel.background = element_rect(fill = "black", color = NA),
+        # set panel border to be white
+        #panel.border = element_rect(color = "white", fill = NA),
+        # set axis labels to be white
+        axis.title = element_text(color = "white",
+                                  family = "league",
+                                  size = 12),
+        # set axis breaks to be white
+        axis.text = element_text(color = "white",
+                                 family = "league"),
+        # set axis titles to be distanced from the axis
+        axis.title.x = element_text(margin = margin(.3, 0, 0, 0, "cm")),
+        # set axis titles to be distanced
+        axis.title.y = element_text(margin = margin(0, .3, 0, 0, "cm")),
+        # modify title text
+        plot.title = element_text(color = "white",
+                                  family = "league",
+                                  face = "bold",
+                                  size = 15),
+        # modify subtitle text
+        plot.subtitle = element_text(color = "white",
+                                     family = "league",
+                                     size = 12),
+        # set axis ticks to be white
+        axis.ticks = element_line(color = "white"),
+        # set axis lines to be white
+        axis.line = element_line(color = "white"),
+        # remove the legend
+        legend.position = "none")
+```
 
+
+```{r}
+# barplot of discovery day of the year
+disc_doy %>% 
+  ggplot() +
+  # plot the counts dataframe with stat = "identity"
+  geom_bar(aes(x = discovery_doy, y = count, fill = count),
+           stat = "identity", color = "orange", linewidth = .05) +
+  # set a gradient fill on the bars
+  scale_fill_gradient(low = "orange", high = "red") +
+  # make data flush with the x- and y-axes
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0, 3200)) +
+  # set x-axis and y-axis labels
+  labs(x = "day of the year",
+       y = "number of fires",
+       title = "When is 'fire season'?",
+       subtitle = "Count of wildfires discovered on each day of the year from 1992-2018") +
+  # add annotations to label spikes in fire activity
+  annotate(geom = "text", x = 180, y = 2850, size = 3, 
+           label = "4th of July", color = "white", angle = 90,
+           family = "league") +
+  annotate(geom = "text", x = 240, y = 1800, size = 3, 
+           label = "Labor Day", color = "white", angle = 90,
+           family = "league") +
+  annotate(geom = "text", x = 167, y = 1800, size = 3, 
+           label = "Summer Solstice", color = "white", angle = 90,
+           family = "league") +
+    # modify theme elements
+  theme(panel.grid.major = element_line(color = NA), # remove grid lines
+        panel.grid.minor = element_line(color = NA),
+        # set plot background to be black
+        plot.background = element_rect(fill = "black", color = NA),
+        # set panel background to be black
+        panel.background = element_rect(fill = "black", color = NA),
+        # set panel border to be white
+        panel.border = element_rect(color = "white", fill = NA),
+        # modify axis labels text
+        axis.title = element_text(color = "white",
+                                  family = "league",
+                                  size = 12),
+        # modify axis breaks text
+        axis.text = element_text(color = "white",
+                                 family = "league"),
+        # set axis ticks to be white
+        axis.ticks = element_line(color = "white"),
+        # set axis lines to be white
+        axis.line = element_line(color = "white"),
+        # remove the legend
+        legend.position = "none",
+        # modify plot title text
+        plot.title = element_text(color = "white",
+                                  family = "league",
+                                  size = 15,
+                                  face = "bold"),
+        # modify plot subtitle text
+        plot.subtitle = element_text(color = "white",
+                                     family = "league",
+                                     size = 12))
+
+# add space between axes 
+```
+
+
+## modifying discovery day of the year
+
+```{r}
+# barplot of discovery day of the year
+disc_doy %>% 
+  ggplot() +
+  # plot the counts dataframe with stat = "identity"
+  geom_bar(aes(x = discovery_doy, y = count), fill = "orange",
+           stat = "identity", color = "orange") +
+  # make data flush with the x- and y-axes
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0, 3200),
+                     label = label_comma()) +
+  # set x-axis and y-axis labels
+  labs(x = "day of the year",
+       y = "number of fires",
+       title = "Wildfire activity peaks during early summer",
+       subtitle = "Count of wildfires discovered on each day of the year from 1992-2018") +
+  # add annotations to label spikes in fire activity
+  annotate(geom = "text", x = 155, y = 3050, size = 3, 
+           label = "4th of July", color = "white",
+           family = "league") +
+    # modify theme elements
+  theme(panel.grid.major = element_blank(), # remove grid lines
+        panel.grid.minor = element_blank(),
+        # remove panel border
+        panel.border = element_blank(),
+        # set plot background to be black
+        plot.background = element_rect(fill = "black", color = NA),
+        # set panel background to be black
+        panel.background = element_rect(fill = "black", color = NA),
+        # modify axis labels text
+        axis.title = element_text(color = "white",
+                                  family = "league",
+                                  size = 12),
+        # modify axis breaks text
+        axis.text = element_text(color = "white",
+                                 family = "league"),
+        # set axis titles to be distanced from the axis
+        axis.title.x = element_text(margin = margin(.3, 0, 0, 0, "cm")),
+        # set axis titles to be distanced
+        axis.title.y = element_text(margin = margin(0, .3, 0, 0, "cm")),
+        # set axis ticks to be white
+        axis.ticks = element_line(color = "white"),
+        # set axis lines to be white
+        axis.line = element_line(color = "white"),
+        # remove the legend
+        legend.position = "none",
+        # modify plot title text
+        plot.title = element_text(color = "white",
+                                  family = "league",
+                                  size = 15,
+                                  face = "bold"),
+        # modify plot subtitle text
+        plot.subtitle = element_text(color = "white",
+                                     family = "league",
+                                     size = 12))
+```
+
+
+
+
+```{r}
+# not even sure what type of plot this is
+ggplot(data = largest_fires) +
+  # plot each fire as a line segment, length-dependent on days active
+  geom_segment(aes(x = disc_a, xend = cont_a, y = fire_num, 
+                   yend = fire_num, color = days_active), linewidth = 5) +
+  # color segments in a gradient fill based on fire size
+  scale_color_gradient(low = "orange", high = "red") +
+  # directly label each fire with fire name
+  geom_text(aes(x = cont_a, y = fire_num, label = fire_name), 
+            hjust = 1, vjust = -.7, size = 4, 
+            color = "white", family = "league") +
+  # directly label each fire with fire size
+  geom_text(aes(x = cont_a, y = fire_num, label = acres_label), 
+            hjust = 1, vjust = 1.5, size = 4, 
+            nudge_x = 0.5, color = "white", family = "league") +
+  # convert date format into month names
+  scale_x_date(date_breaks = "1 month", 
+               date_labels = "%b") +
+  # this line was meant to give the bars some space but somehow orders them by fire size so I'm scared to touch it
+  scale_y_discrete(limits = c(0, 11),
+                   expand = c(-1,-1)) +
+  # add axis labels, title, and subtitle
+  labs(x = "fire duration",
+       y = "",
+       title = "How long does it take to contain a megafire?",
+       subtitle = "10 of California's largest megafires, mapped by days active") +
+  theme(panel.grid.major.x = element_blank(), # remove x-axis grid lines
+        # remove panel grid lines
+        panel.grid.major = element_line(color = NA),
+        panel.grid.minor = element_line(color = NA),
+        # set plot background to be black
+        plot.background = element_rect(fill = "black", color = NA),
+        # set panel background to be black
+        panel.background = element_rect(fill = "black", color = NA),
+        # set panel border to be white
+        panel.border = element_rect(color = "white", fill = NA),
+        # modify axis title text
+        axis.title = element_text(color = "white",
+                                  family = "league",
+                                  size = 12),
+        # modify axis breaks text
+        axis.text = element_text(color = "white",
+                                 family = "league"),
+        # set axis ticks to be white
+        axis.ticks = element_line(color = "white"),
+        # remove y-axis ticks
+        axis.ticks.y = element_blank(),
+        # remove y-axis labels
+        axis.text.y = element_blank(),
+        # set axis lines to be white
+        axis.line = element_line(color = "white"),
+        # remove the legend
+        legend.position = "none",
+        # format plot title
+        plot.title = element_text(color = "white",
+                                  family = "league",
+                                  size = 15,
+                                  face = "bold"),
+        # format plot subtitle
+        plot.subtitle = element_text(color = "white",
+                                     family = "league",
+                                     size = 12))
+```
+
+
+## modifying the final plot
+```{r}
+# not even sure what type of plot this is
+ggplot(data = largest_fires) +
+  # plot each fire as a line segment, length-dependent on days active
+  geom_segment(aes(x = disc_a, xend = cont_a, y = fire_num, 
+                   yend = fire_num), 
+               linewidth = 2, color = "orange") +
+  # directly label each fire with fire name
+  geom_text(aes(x = cont_a, y = fire_num, label = fire_name), 
+            hjust = 1, vjust = -.7, size = 4, 
+            color = "white", family = "league") +
+  # directly label each fire with fire size
+  geom_text(aes(x = cont_a, y = fire_num, label = acres_label), 
+            hjust = 1, vjust = 1.5, size = 4, 
+            nudge_x = 0.5, color = "white", family = "league") +
+  # convert date format into month names
+  scale_x_date(date_breaks = "1 month", 
+               date_labels = "%b") +
+  # this line was meant to give the bars some space but somehow orders them by fire size so I'm scared to touch it
+  scale_y_discrete(limits = c(0, 11),
+                   expand = c(-1,-1)) +
+  # add axis labels, title, and subtitle
+  labs(x = "fire duration",
+       y = "",
+       title = "Containing a megafire can take months ",
+       subtitle = "10 of California's largest megafires by days active") +
+  theme(panel.grid.major.x = element_blank(), # remove x-axis grid lines
+        # remove panel grid lines
+        panel.grid.major = element_line(color = NA),
+        panel.grid.minor = element_line(color = NA),
+        # remove panel border
+        panel.border = element_blank(),
+        # set plot background to be black
+        plot.background = element_rect(fill = "black", color = NA),
+        # set panel background to be black
+        panel.background = element_rect(fill = "black", color = NA),
+        # modify axis title text
+        axis.title = element_text(color = "white",
+                                  family = "league",
+                                  size = 12),
+        # move the x-axis label
+        axis.title.x = element_text(margin = margin(.3, 0, 0, 0, "cm")),
+        # modify axis breaks text
+        axis.text = element_text(color = "white",
+                                 family = "league"),
+        # set axis ticks to be white
+        axis.ticks = element_line(color = "white"),
+        # remove y-axis ticks
+        axis.ticks.y = element_blank(),
+        # remove y-axis labels
+        axis.text.y = element_blank(),
+        # set axis lines to be white
+        axis.line = element_line(color = "white"),
+        # remove the legend
+        legend.position = "none",
+        # format plot title
+        plot.title = element_text(color = "white",
+                                  family = "league",
+                                  size = 15,
+                                  face = "bold"),
+        # format plot subtitle
+        plot.subtitle = element_text(color = "white",
+                                     family = "league",
+                                     size = 12))
+```
 
 
 
